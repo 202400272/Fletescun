@@ -163,6 +163,19 @@
         </div>
     </div>
 
+    @php
+        $p3 = session('cotizador_paso3', []);
+        $catalogoInit = $p3['inventario_catalogo'] ?? [];
+        $especialesInit = $p3['articulos_especiales'] ?? [];
+        $fotosInit = $p3['fotos_paths'] ?? [];
+        $fotosUrls = array_map(function ($path) {
+            return [
+                'path' => $path,
+                'url'  => asset('storage/' . $path),
+            ];
+        }, $fotosInit);
+    @endphp
+
     {{-- ── FORM CARD ── --}}
     <div class="form-card">
 
@@ -371,6 +384,8 @@
                    style="display:none;"
                    onchange="handleFileInput(this.files)">
 
+                 <input type="hidden" name="fotos_existentes" id="fotosExistentes" value="">
+
             <div class="photo-grid" id="photoGrid"></div>
 
             {{-- Tip --}}
@@ -407,7 +422,12 @@ let catalogItems  = {};   // { nombre: { nombre, m3, cantidad, categoria } }
 let specialItems  = [];   // [ { id, cantidad, articulo, observaciones } ]
 let photoFiles    = [];   // File[]
 let photoDataUrls = [];   // { name, url }[]
+let existingPhotos = [];  // { path, url }[]
 let specialIdCtr  = 0;
+
+const bootstrapCatalog = @json($catalogoInit);
+const bootstrapSpecial = @json($especialesInit);
+const bootstrapFotos   = @json($fotosUrls);
 
 /* ══════════════════════════════════════════════════════════
    ACORDEÓN
@@ -473,16 +493,16 @@ function renderCatalogSummary() {
             </div>
             <div class="qty-wrap">
                 <button type="button" class="qty-btn minus"
-                        onclick="changeQty(${JSON.stringify(item.nombre)}, -1)">
+                    onclick='changeQty(${JSON.stringify(item.nombre)}, -1)'>
                     <i class="fa-solid fa-minus" style="font-size:.65rem;"></i>
                 </button>
                 <span class="qty-num">${item.cantidad}</span>
                 <button type="button" class="qty-btn plus"
-                        onclick="changeQty(${JSON.stringify(item.nombre)}, 1)">
+                    onclick='changeQty(${JSON.stringify(item.nombre)}, 1)'>
                     <i class="fa-solid fa-plus" style="font-size:.65rem;"></i>
                 </button>
                 <button type="button" class="del-btn"
-                        onclick="removeFromCatalog(${JSON.stringify(item.nombre)})">
+                    onclick='removeFromCatalog(${JSON.stringify(item.nombre)})'>
                     <i class="fa-solid fa-xmark" style="font-size:.65rem;"></i>
                 </button>
             </div>
@@ -538,6 +558,11 @@ function renderSpecialRows() {
         </div>`).join('');
 }
 
+function removeExistingPhoto(idx) {
+    existingPhotos.splice(idx, 1);
+    renderPhotos();
+}
+
 /* ══════════════════════════════════════════════════════════
    FOTOS
 ══════════════════════════════════════════════════════════ */
@@ -579,14 +604,26 @@ function removePhoto(idx) {
 }
 
 function renderPhotos() {
-    document.getElementById('photoGrid').innerHTML =
-        photoDataUrls.map((p, i) => `
-            <div class="photo-thumb">
-                <img src="${p.url}" alt="foto-${i}">
-                <button type="button" class="photo-del" onclick="removePhoto(${i})">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>`).join('');
+    const existingHtml = existingPhotos.map((p, i) => `
+        <div class="photo-thumb">
+            <img src="${p.url}" alt="foto-existente-${i}">
+            <button type="button" class="photo-del" onclick="removeExistingPhoto(${i})">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>`).join('');
+
+    const newHtml = photoDataUrls.map((p, i) => `
+        <div class="photo-thumb">
+            <img src="${p.url}" alt="foto-${i}">
+            <button type="button" class="photo-del" onclick="removePhoto(${i})">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>`).join('');
+
+    document.getElementById('photoGrid').innerHTML = existingHtml + newHtml;
+    document.getElementById('fotosExistentes').value = JSON.stringify(
+        existingPhotos.map(p => p.path)
+    );
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -641,6 +678,39 @@ document.getElementById('formPaso3').addEventListener('submit', function(e) {
         // Fallback al submit tradicional si falla el fetch
         this.submit();
     });
+});
+
+window.addEventListener('DOMContentLoaded', () => {
+    if (bootstrapCatalog.length) {
+        bootstrapCatalog.forEach(item => {
+            if (!item.nombre) return;
+            catalogItems[item.nombre] = {
+                nombre: item.nombre,
+                m3: parseFloat(item.m3) || 0,
+                cantidad: parseInt(item.cantidad, 10) || 1,
+                categoria: item.categoria || ''
+            };
+        });
+        renderCatalogSummary();
+    }
+
+    if (bootstrapSpecial.length) {
+        bootstrapSpecial.forEach(item => {
+            specialIdCtr++;
+            specialItems.push({
+                id: specialIdCtr,
+                cantidad: parseInt(item.cantidad, 10) || 1,
+                articulo: item.articulo || '',
+                observaciones: item.observaciones || ''
+            });
+        });
+        renderSpecialRows();
+    }
+
+    if (bootstrapFotos.length) {
+        existingPhotos = bootstrapFotos.map(p => ({ path: p.path, url: p.url }));
+        renderPhotos();
+    }
 });
 
 /* ══════════════════════════════════════════════════════════

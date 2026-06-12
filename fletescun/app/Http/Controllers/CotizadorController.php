@@ -17,6 +17,36 @@ class CotizadorController extends Controller
     // ────────────────────────────────────────────────────────
     public function paso1()
     {
+        $cotizacionId = session('cotizacion_id');
+        if ($cotizacionId && ! session()->has('cotizador_paso1')) {
+            $cotizacion = DB::table('cotizaciones')
+                ->where('id', $cotizacionId)
+                ->first();
+
+            if ($cotizacion) {
+                $cliente = DB::table('clientes')
+                    ->where('id', $cotizacion->cliente_id)
+                    ->first();
+
+                if ($cliente) {
+                    session([
+                        'cotizacion_folio' => $cotizacion->folio,
+                        'cotizador_paso1'  => [
+                            'nombre'                 => $cliente->nombre,
+                            'telefono'               => $cliente->telefono,
+                            'correo'                 => $cliente->correo,
+                            'direccion_origen'       => $cotizacion->direccion_origen,
+                            'direccion_destino'      => $cotizacion->direccion_destino,
+                            'fecha_ideal'            => $cotizacion->fecha_ideal,
+                            'estacionamiento_origen' => $cotizacion->acceso_estacionamiento_origen,
+                            'estacionamiento_destino'=> $cotizacion->acceso_estacionamiento_destino,
+                            'distancia_km'           => $cotizacion->distancia_km,
+                        ],
+                    ]);
+                }
+            }
+        }
+
         return view('paso1');
     }
 
@@ -62,6 +92,66 @@ class CotizadorController extends Controller
             'fecha_ideal.required'             => 'La fecha es obligatoria.',
             'fecha_ideal.after_or_equal'       => 'La fecha no puede ser en el pasado.',
         ]);
+
+        $cotizacionId = session('cotizacion_id');
+        $cotizacion = null;
+        if ($cotizacionId) {
+            $cotizacion = DB::table('cotizaciones')
+                ->where('id', $cotizacionId)
+                ->first();
+        }
+
+        if ($cotizacion) {
+            $clienteId = $cotizacion->cliente_id;
+
+            DB::table('clientes')
+                ->where('id', $clienteId)
+                ->update([
+                    'nombre'         => $request->nombre,
+                    'telefono'       => $request->telefono,
+                    'correo'         => $request->correo,
+                    'actualizado_en' => now(),
+                ]);
+
+            DB::table('cotizaciones')
+                ->where('id', $cotizacionId)
+                ->update([
+                    'direccion_origen'               => $request->direccion_origen,
+                    'direccion_destino'              => $request->direccion_destino,
+                    'fecha_ideal'                    => $request->fecha_ideal,
+                    'acceso_estacionamiento_origen'  => $request->estacionamiento_origen ?: null,
+                    'acceso_estacionamiento_destino' => $request->estacionamiento_destino ?: null,
+                    'distancia_km'                   => $request->filled('distancia_km')
+                        ? round((float) $request->distancia_km, 2)
+                        : null,
+                    'actualizado_en'                 => now(),
+                ]);
+
+            session([
+                'cotizacion_id'      => $cotizacionId,
+                'cotizacion_folio'   => $cotizacion->folio,
+                'cliente_id'         => $clienteId,
+                'lat_origen'         => $request->lat_origen,
+                'lng_origen'         => $request->lng_origen,
+                'lat_destino'        => $request->lat_destino,
+                'lng_destino'        => $request->lng_destino,
+                'distancia_km'       => $request->distancia_km,
+                'cotizador_paso1'    => [
+                    'nombre'                 => $request->nombre,
+                    'telefono'               => $request->telefono,
+                    'correo'                 => $request->correo,
+                    'direccion_origen'       => $request->direccion_origen,
+                    'direccion_destino'      => $request->direccion_destino,
+                    'fecha_ideal'            => $request->fecha_ideal,
+                    'estacionamiento_origen' => $request->estacionamiento_origen,
+                    'estacionamiento_destino'=> $request->estacionamiento_destino,
+                    'distancia_km'           => $request->distancia_km,
+                ],
+            ]);
+
+            return redirect()->route('cotizar.paso2')
+                ->with('success', "¡Actualizado! Puedes ajustar los detalles de tu mudanza.");
+        }
 
         // ── 2. Insertar / reutilizar cliente ───────────────
         //
@@ -143,6 +233,17 @@ class CotizadorController extends Controller
             'lat_destino'        => $request->lat_destino,
             'lng_destino'        => $request->lng_destino,
             'distancia_km'       => $request->distancia_km,
+            'cotizador_paso1'     => [
+                'nombre'                 => $request->nombre,
+                'telefono'               => $request->telefono,
+                'correo'                 => $request->correo,
+                'direccion_origen'       => $request->direccion_origen,
+                'direccion_destino'      => $request->direccion_destino,
+                'fecha_ideal'            => $request->fecha_ideal,
+                'estacionamiento_origen' => $request->estacionamiento_origen,
+                'estacionamiento_destino'=> $request->estacionamiento_destino,
+                'distancia_km'           => $request->distancia_km,
+            ],
         ]);
 
         // ── 6. Redirigir al Paso 2 ─────────────────────────
@@ -163,6 +264,34 @@ class CotizadorController extends Controller
         if (! session('cotizacion_id')) {
             return redirect()->route('cotizar.paso1')
                 ->with('error', 'Por favor completa el Paso 1 primero.');
+        }
+
+        $cotizacionId = session('cotizacion_id');
+        if ($cotizacionId && ! session()->has('cotizador_paso2')) {
+            $cotizacion = DB::table('cotizaciones')
+                ->where('id', $cotizacionId)
+                ->first();
+
+            if ($cotizacion) {
+                $servicios = DB::table('servicios_adicionales')
+                    ->where('cotizacion_id', $cotizacionId)
+                    ->pluck('servicio')
+                    ->toArray();
+
+                session([
+                    'cotizador_paso2' => [
+                        'piso_origen'        => $cotizacion->piso_origen,
+                        'piso_destino'       => $cotizacion->piso_destino,
+                        'elevador_origen'    => (string) $cotizacion->elevador_origen,
+                        'elevador_destino'   => (string) $cotizacion->elevador_destino,
+                        'modalidad'          => $cotizacion->tipo_servicio,
+                        'servicio_embalaje'  => in_array('Embalaje de cajas',        $servicios) ? '1' : '0',
+                        'servicio_desmontaje'=> in_array('Desmontaje de muebles',    $servicios) ? '1' : '0',
+                        'servicio_volado'    => in_array('Volado / acarreo externo', $servicios) ? '1' : '0',
+                        'servicio_seguro'    => in_array('Seguro de carga',          $servicios) ? '1' : '0',
+                    ],
+                ]);
+            }
         }
 
         return view('paso2');
@@ -260,6 +389,17 @@ class CotizadorController extends Controller
             'piso_destino'     => $request->piso_destino,
             'elevador_origen'  => (int) ($request->elevador_origen  ?? 0),
             'elevador_destino' => (int) ($request->elevador_destino ?? 0),
+            'cotizador_paso2'  => [
+                'piso_origen'         => $request->piso_origen,
+                'piso_destino'        => $request->piso_destino,
+                'elevador_origen'     => (string) ($request->elevador_origen  ?? 0),
+                'elevador_destino'    => (string) ($request->elevador_destino ?? 0),
+                'modalidad'           => $request->modalidad,
+                'servicio_embalaje'   => $request->input('servicio_embalaje', '0'),
+                'servicio_desmontaje' => $request->input('servicio_desmontaje', '0'),
+                'servicio_volado'     => $request->input('servicio_volado', '0'),
+                'servicio_seguro'     => $request->input('servicio_seguro', '0'),
+            ],
         ]);
 
         // ── 4. Redirigir al Paso 3 ────────────────────────
@@ -272,6 +412,49 @@ class CotizadorController extends Controller
         if (! session('cotizacion_id')) {
             return redirect()->route('cotizar.paso1')
                 ->with('error', 'Por favor completa el Paso 1 primero.');
+        }
+
+        $cotizacionId = session('cotizacion_id');
+        if ($cotizacionId && ! session()->has('cotizador_paso3')) {
+            $catalogoRaw = DB::table('inventario_articulos')
+                ->where('cotizacion_id', $cotizacionId)
+                ->where('es_especial', 0)
+                ->orderBy('orden')
+                ->get();
+
+            $catalogo = $catalogoRaw->map(fn($r) => [
+                'nombre'       => $r->nombre,
+                'cantidad'     => $r->cantidad,
+                'm3'           => $r->m3,
+                'categoria'    => $r->categoria,
+                'observaciones'=> $r->observaciones,
+            ])->toArray();
+
+            $especialesRaw = DB::table('inventario_articulos')
+                ->where('cotizacion_id', $cotizacionId)
+                ->where('es_especial', 1)
+                ->orderBy('orden')
+                ->get();
+
+            $especiales = $especialesRaw->map(fn($r) => [
+                'articulo'     => $r->nombre,
+                'cantidad'     => $r->cantidad,
+                'observaciones'=> $r->observaciones,
+            ])->toArray();
+
+            $fotos = DB::table('fotos_anexo')
+                ->where('cotizacion_id', $cotizacionId)
+                ->orderBy('orden')
+                ->pluck('ruta_relativa')
+                ->toArray();
+
+            session([
+                'cotizador_paso3' => [
+                    'inventario_catalogo'  => $catalogo,
+                    'articulos_especiales' => $especiales,
+                    'fotos_paths'          => $fotos,
+                ],
+            ]);
         }
         return view('paso3');
     }
@@ -405,6 +588,14 @@ public function paso4Post(Request $request)
             ->with('error', 'Sesión expirada. Por favor comienza de nuevo.');
     }
 
+    $tieneInventario = DB::table('inventario_articulos')
+        ->where('cotizacion_id', $cotizacionId)
+        ->exists();
+    if (! $tieneInventario) {
+        return redirect()->route('cotizar.paso3')
+            ->with('error', 'Debes agregar al menos un articulo al inventario para continuar.');
+    }
+
     $request->validate([
         'acepta_terminos'   => ['required', 'in:1'],
         'acepta_inventario' => ['required', 'in:1'],
@@ -449,11 +640,12 @@ public function paso4Post(Request $request)
         $resultado = $docService->generarTodo($cotizacionId);
 
         if (!$resultado['success']) {
-            \Log::warning("Documentos no generados pero cotización guardada: {$cotizacionId}");
+            \Log::warning("Fallo al generar documentos: " . $resultado['message']);
+            return back()->with('error', 'La cotización se guardó, pero hubo un error enviando los documentos. Nuestro equipo lo revisará.');
         }
     } catch (\Exception $e) {
-        \Log::error("Error en DocumentGenerationService: " . $e->getMessage());
-        // No interrumpir el flujo; la cotización se guardó igual
+        \Log::error("Error crítico en DocumentGenerationService: " . $e->getMessage());
+        return back()->with('error', 'Error al procesar el envío de la cotización. Por favor, intente de nuevo.');
     }
 
     // ── 5. Limpiar sesión del wizard ───────────────────
@@ -511,28 +703,48 @@ public function paso4Post(Request $request)
             'fotos.*.max'   => 'Cada foto no debe superar los 10 MB.',
             'fotos.max'     => 'Puedes subir máximo 20 fotos.',
         ]);
+
+        $catalogoJson = $request->input('inventario_catalogo', '[]');
+        $especialesJson  = $request->input('articulos_especiales', '[]');
+        $catalogoItems = json_decode($catalogoJson, true) ?? [];
+        $especialesItems = json_decode($especialesJson, true) ?? [];
+
+        if (count($catalogoItems) === 0 && count($especialesItems) === 0) {
+            return back()
+                ->withErrors(['inventario' => 'Debes agregar al menos un articulo al inventario para continuar.'])
+                ->withInput();
+        }
  
-        // ── 1. Limpiar inventario y fotos anteriores ──────
+        // ── 1. Limpiar inventario anterior ────────────────
         //  (por si el usuario regresó y reenvió el paso)
         DB::table('inventario_articulos')
             ->where('cotizacion_id', $cotizacionId)
             ->delete();
  
-        // Eliminar fotos anteriores del disco también
+        // Fotos anteriores: conservar las que el usuario mantuvo
+        $keepFotos = json_decode($request->input('fotos_existentes', '[]'), true);
+        $keepFotos = is_array($keepFotos) ? $keepFotos : [];
+        $keepLookup = array_flip($keepFotos);
+
         $fotosAntiguas = DB::table('fotos_anexo')
             ->where('cotizacion_id', $cotizacionId)
-            ->pluck('ruta_relativa');
- 
-        foreach ($fotosAntiguas as $ruta) {
-            Storage::disk('public')->delete($ruta);
+            ->orderBy('orden')
+            ->get();
+
+        $fotosAConservar = [];
+        foreach ($fotosAntiguas as $foto) {
+            if (isset($keepLookup[$foto->ruta_relativa])) {
+                $fotosAConservar[] = $foto;
+                continue;
+            }
+            Storage::disk('public')->delete($foto->ruta_relativa);
         }
+
         DB::table('fotos_anexo')
             ->where('cotizacion_id', $cotizacionId)
             ->delete();
  
         // ── 2. Insertar artículos del catálogo ────────────
-        $catalogoJson = $request->input('inventario_catalogo', '[]');
-        $catalogoItems = json_decode($catalogoJson, true) ?? [];
         $orden = 1;
  
         foreach ($catalogoItems as $item) {
@@ -557,9 +769,6 @@ public function paso4Post(Request $request)
         }
  
         // ── 3. Insertar artículos especiales ──────────────
-        $especialesJson  = $request->input('articulos_especiales', '[]');
-        $especialesItems = json_decode($especialesJson, true) ?? [];
- 
         foreach ($especialesItems as $item) {
             $nombre   = trim($item['articulo']       ?? '');
             $obs      = trim($item['observaciones']  ?? '');
@@ -590,8 +799,21 @@ public function paso4Post(Request $request)
         //  Ruta en disco:  storage/app/public/cotizaciones/{folio}/
         //  URL pública:    /storage/cotizaciones/{folio}/FotoN.jpg
         //
+        $fotoOrden = 1;
+
+        foreach ($fotosAConservar as $foto) {
+            DB::table('fotos_anexo')->insert([
+                'cotizacion_id' => $cotizacionId,
+                'nombre_archivo'=> $foto->nombre_archivo,
+                'ruta_relativa' => $foto->ruta_relativa,
+                'tipo_mime'     => $foto->tipo_mime,
+                'tamanio_bytes' => $foto->tamanio_bytes,
+                'orden'         => $fotoOrden,
+            ]);
+            $fotoOrden++;
+        }
+
         if ($request->hasFile('fotos')) {
-            $fotoOrden = 1;
             foreach ($request->file('fotos') as $foto) {
                 if (! $foto->isValid()) continue;
  

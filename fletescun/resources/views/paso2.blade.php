@@ -269,6 +269,11 @@
         </div>
     </div>
 
+    @php
+        $p2 = session('cotizador_paso2', []);
+        $modalidadValue = old('modalidad', $p2['modalidad'] ?? 'Exclusivo');
+    @endphp
+
     {{-- ── FORM CARD ─────────────────────────────────────────── --}}
     <div class="form-card">
 
@@ -309,7 +314,7 @@
                                 required>
                             <option value="">Seleccionar piso</option>
                             @foreach(['Planta baja','1er piso','2do piso','3er piso','4to piso','5to piso','6to piso o más'] as $piso)
-                                <option value="{{ $piso }}" {{ old('piso_origen') == $piso ? 'selected' : '' }}>
+                                <option value="{{ $piso }}" {{ old('piso_origen', $p2['piso_origen'] ?? '') == $piso ? 'selected' : '' }}>
                                     {{ $piso }}
                                 </option>
                             @endforeach
@@ -331,7 +336,7 @@
                                 <span class="toggle-thumb"></span>
                             </button>
                             <input type="hidden" name="elevador_origen" id="elevador_origen"
-                                   value="{{ old('elevador_origen', '0') }}">
+                                value="{{ old('elevador_origen', $p2['elevador_origen'] ?? '0') }}">
                         </div>
                     </div>
                 </div>
@@ -352,7 +357,7 @@
                                 required>
                             <option value="">Seleccionar piso</option>
                             @foreach(['Planta baja','1er piso','2do piso','3er piso','4to piso','5to piso','6to piso o más'] as $piso)
-                                <option value="{{ $piso }}" {{ old('piso_destino') == $piso ? 'selected' : '' }}>
+                                <option value="{{ $piso }}" {{ old('piso_destino', $p2['piso_destino'] ?? '') == $piso ? 'selected' : '' }}>
                                     {{ $piso }}
                                 </option>
                             @endforeach
@@ -374,7 +379,7 @@
                                 <span class="toggle-thumb"></span>
                             </button>
                             <input type="hidden" name="elevador_destino" id="elevador_destino"
-                                   value="{{ old('elevador_destino', '0') }}">
+                                value="{{ old('elevador_destino', $p2['elevador_destino'] ?? '0') }}">
                         </div>
                     </div>
                 </div>
@@ -399,7 +404,7 @@
 
             <div class="d-flex flex-column gap-2 mb-2">
                 @foreach($servicios as $srv)
-                    @php $isActive = old($srv['key'], '0') === '1' @endphp
+                    @php $isActive = old($srv['key'], $p2[$srv['key']] ?? '0') === '1' @endphp
                     <button type="button"
                             class="service-check {{ $isActive ? 'active' : '' }}"
                             id="btn_{{ $srv['key'] }}"
@@ -430,29 +435,29 @@
             </label>
             @error('modalidad')<span class="error-msg mb-2 d-block">{{ $message }}</span>@enderror
 
-            <input type="hidden" name="modalidad" id="modalidadInput"
-                   value="{{ old('modalidad', 'Exclusivo') }}">
+                 <input type="hidden" name="modalidad" id="modalidadInput"
+                     value="{{ $modalidadValue }}">
 
             <div class="row g-3">
                 {{-- Exclusivo --}}
                 <div class="col-md-6">
                     <button type="button"
-                            class="modality-card exclusivo {{ old('modalidad', 'Exclusivo') === 'Exclusivo' ? 'active' : '' }}"
+                            class="modality-card exclusivo {{ $modalidadValue === 'Exclusivo' ? 'active' : '' }}"
                             id="cardExclusivo"
                             onclick="setModalidad('Exclusivo')">
                         <div class="d-flex align-items-start justify-content-between mb-3">
                             <div class="modality-icon">
                                 <i class="fa-solid fa-bolt"
                                    id="iconExclusivo"
-                                   style="font-size:1.1rem; color:{{ old('modalidad','Exclusivo')==='Exclusivo' ? '#2563EB' : '#94A3B8' }};"></i>
+                                                                     style="font-size:1.1rem; color:{{ $modalidadValue === 'Exclusivo' ? '#2563EB' : '#94A3B8' }};"></i>
                             </div>
                             <div id="checkExclusivo"
-                                 class="modality-check {{ old('modalidad','Exclusivo')==='Exclusivo' ? '' : 'd-none' }}">
+                                                                 class="modality-check {{ $modalidadValue === 'Exclusivo' ? '' : 'd-none' }}">
                                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                                     <path d="M2 6l3 3 5-5" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
                                 </svg>
                             </div>
-                            <span class="badge-pill badge-exclusivo {{ old('modalidad','Exclusivo')==='Exclusivo' ? 'd-none' : '' }}"
+                                                        <span class="badge-pill badge-exclusivo {{ $modalidadValue === 'Exclusivo' ? 'd-none' : '' }}"
                                   id="badgeExclusivo">
                                 Más rápido
                             </span>
@@ -470,22 +475,22 @@
                 {{-- Compartido --}}
                 <div class="col-md-6">
                     <button type="button"
-                            class="modality-card compartido {{ old('modalidad','Exclusivo') === 'Compartido' ? 'active' : '' }}"
+                            class="modality-card compartido {{ $modalidadValue === 'Compartido' ? 'active' : '' }}"
                             id="cardCompartido"
                             onclick="setModalidad('Compartido')">
                         <div class="d-flex align-items-start justify-content-between mb-3">
                             <div class="modality-icon">
                                 <i class="fa-solid fa-users"
                                    id="iconCompartido"
-                                   style="font-size:1.1rem; color:{{ old('modalidad','Exclusivo')==='Compartido' ? '#059669' : '#94A3B8' }};"></i>
+                                                                     style="font-size:1.1rem; color:{{ $modalidadValue === 'Compartido' ? '#059669' : '#94A3B8' }};"></i>
                             </div>
                             <div id="checkCompartido"
-                                 class="modality-check {{ old('modalidad','Exclusivo')==='Compartido' ? '' : 'd-none' }}">
+                                                                 class="modality-check {{ $modalidadValue === 'Compartido' ? '' : 'd-none' }}">
                                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                                     <path d="M2 6l3 3 5-5" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
                                 </svg>
                             </div>
-                            <span class="badge-pill badge-compartido {{ old('modalidad','Exclusivo')==='Compartido' ? 'd-none' : '' }}"
+                                                        <span class="badge-pill badge-compartido {{ $modalidadValue === 'Compartido' ? 'd-none' : '' }}"
                                   id="badgeCompartido">
                                 Menor costo
                             </span>

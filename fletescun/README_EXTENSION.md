@@ -78,7 +78,8 @@ CotizadorController::paso4Post()
    ├─ DocumentGenerationService (orquestador)
    │  ├─ CartaPorteService (genera Word)
    │  ├─ AnexoFotograficoService (genera PDF)
-   │  ├─ CotizacionGenerada Mailable (envía correo)
+   │  ├─ CotizacionMailService (envía correo SMTP)
+   │  ├─ CotizacionDocumentacionMail (mailable con adjuntos)
    │  └─ Registra en BD
    ↓
 /cotizar/gracias (éxito)
@@ -98,8 +99,9 @@ CotizadorController::paso4Post()
 - `app/Services/DocumentGenerationService.php`
 
 ### Mail
-- `app/Mail/CotizacionGenerada.php`
-- `resources/views/emails/cotizacion-generada.blade.php`
+- `app/Services/Mail/CotizacionMailService.php`
+- `app/Mail/CotizacionDocumentacionMail.php`
+- `resources/views/emails/cotizacion-documentacion.blade.php`
 
 ### Controlador
 - `app/Http/Controllers/CotizadorController.php` (actualizado)

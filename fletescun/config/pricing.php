@@ -81,7 +81,7 @@ return [
     */
     'multiplicador_modalidad' => [
         'Exclusivo'   => 1.0,    // Precio completo
-        'Compartido'  => 0.65,   // 35% descuento
+        'Compartido'  => 0.80,   // ahora 80% del precio (20% descuento)
     ],
 
     /*

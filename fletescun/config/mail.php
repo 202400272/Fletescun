@@ -39,7 +39,12 @@ return [
 
         'smtp' => [
             'transport' => 'smtp',
-            'scheme' => env('MAIL_SCHEME'),
+            // Normalizar esquema: algunos entornos ponen 'tls' por error,
+            // pero Symfony espera 'smtp' o 'smtps'. Si se detecta 'tls'
+            // lo convertimos a 'smtp' y dejamos la encriptación en
+            // la variable MAIL_ENCRYPTION.
+            'scheme' => (env('MAIL_SCHEME') === 'tls') ? 'smtp' : env('MAIL_SCHEME'),
+            'encryption' => env('MAIL_ENCRYPTION', env('MAIL_SCHEME') === 'tls' ? 'tls' : null),
             'url' => env('MAIL_URL'),
             'host' => env('MAIL_HOST', '127.0.0.1'),
             'port' => env('MAIL_PORT', 2525),

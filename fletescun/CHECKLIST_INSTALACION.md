@@ -74,8 +74,9 @@ MAIL_FROM_NAME="FletesCun"
 - [x] `app/Services/CartaPorteService.php` - Generador de Word
 - [x] `app/Services/AnexoFotograficoService.php` - Generador de PDF
 - [x] `app/Services/DocumentGenerationService.php` - Orquestador
-- [x] `app/Mail/CotizacionGenerada.php` - Template de correo
-- [x] `resources/views/emails/cotizacion-generada.blade.php` - Vista correo
+- [x] `app/Services/Mail/CotizacionMailService.php` - Envío SMTP (centralizado)
+- [x] `app/Mail/CotizacionDocumentacionMail.php` - Mailable con adjuntos
+- [x] `resources/views/emails/cotizacion-documentacion.blade.php` - Plantilla corporativa
 - [x] `app/Http/Controllers/CotizadorController.php` - Controlador actualizado
 - [x] `DOCUMENTACION_EXTENSION_POSLICITACION.md` - Documentación completa
 

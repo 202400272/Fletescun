@@ -154,20 +154,24 @@ Total Final = Subtotal con Modalidad + IVA
 
 ### 3. **Mail** (Correos)
 
-#### `app/Mail/CotizacionGenerada.php`
-**Responsabilidad:** Mailable para envío de cotización a gerencia
+#### `app/Services/Mail/CotizacionMailService.php`
+**Responsabilidad:** Envío SMTP centralizado de la documentación generada.
 
 **Características:**
-- Implementa `ShouldQueue` (procesamiento asincrónico)
-- Adjunta ambos documentos (Word + PDF)
-- Automáticamente identifica MIME types
+- Asegura keys mínimas en `.env` (sin escribir credenciales por defecto)
+- Valida variables requeridas antes de enviar
+- Verifica existencia de adjuntos (Word + PDF)
+- Registra resultado (éxito o error) en logs
 
-#### `resources/views/emails/cotizacion-generada.blade.php`
+#### `app/Mail/CotizacionDocumentacionMail.php`
+**Responsabilidad:** Mailable con plantilla HTML corporativa + adjuntos.
+
+#### `resources/views/emails/cotizacion-documentacion.blade.php`
 **Template HTML** del correo con:
-- Saludo personalizando
-- Datos de la cotización
-- Detalles del cliente
-- Acciones recomendadas
+- Membrete con logo
+- Secciones legibles con la información capturada
+- Botón de contacto (WhatsApp / llamada)
+- Diseño responsive compatible con clientes comunes
 
 ### 4. **Controlador Actualizado**
 
@@ -291,9 +295,9 @@ Editar `config/pricing.php` para ajustar:
       │
       ├─ Registra ambos archivos en documentos_generados
       │
-      ├─ Envía Mailable CotizacionGenerada
-      │  ├─ A: config('mail.from.address') (gerencia)
-      │  ├─ Subject: "Cotización Generada - Folio {folio}"
+      ├─ Envía correo SMTP (CotizacionMailService)
+      │  ├─ A: config('cotizacion_mail.to')
+      │  ├─ Subject: "Documentación de cotización — Folio {folio}"
       │  ├─ Adjunto 1: CartaPorte_{folio}.docx
       │  ├─ Adjunto 2: AnexoFotografico_{folio}.pdf
       │  └─ Registra en notificaciones_correo

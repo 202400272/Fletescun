@@ -38,6 +38,9 @@
     /* fotos_paths: rutas públicas guardadas en paso3 */
     $fotos     = $p3['fotos_paths']          ?? [];
 
+    // Distancia estimada para mostrar en UI (desde sesión o fallback de config)
+    $displayDistance = $p1['distancia_km'] ?? $p2['distancia_km'] ?? config('pricing.distancia_km_estimada', 25);
+
     /* ── Cálculo de precio estimado (refleja la lógica del React) */
     $floorMap = [
         'Planta baja' => 0, '1er piso' => 1, '2do piso' => 2,
@@ -361,6 +364,14 @@
         </div>
     @endif
 
+    {{-- ── ALERTA DE ERROR DE ENVÍO ── --}}
+    @if(session('error'))
+        <div class="session-alert">
+            <i class="fa-solid fa-circle-exclamation"></i>
+            <div>{{ session('error') }}</div>
+        </div>
+    @endif
+
     {{-- ── ERRORES DE VALIDACIÓN ── --}}
     @if($errors->any())
         <div class="session-alert">
@@ -528,6 +539,9 @@
                             <span class="sum-value">{{ $modalidad }}</span>
                         </div>
                     </div>
+                    <div class="sum-row">
+
+                    </div>
                 </div>
             </div>
         </div>
@@ -537,12 +551,23 @@
             $catFilled = array_filter($catalogo, fn($i) => !empty($i['nombre']));
             $haySrvs   = $srvEmbalaje || $srvDesmontaje || $srvVolado || $srvSeguro;
             $hayFotos  = count($fotos) > 0;
+
+            // Calcular volumen total (m³) del inventario declarado
+            $totalM3 = array_reduce($catFilled, function($carry, $item) {
+                $m3 = isset($item['m3']) ? (float) $item['m3'] : 0;
+                $qty = isset($item['cantidad']) ? (float) $item['cantidad'] : 0;
+                return $carry + ($m3 * $qty);
+            }, 0.0);
+
+            
+
             $mostrarInventario = count($catFilled) > 0 || $hayEspeciales || $haySrvs || $hayFotos;
         @endphp
 
         @if($mostrarInventario)
         <div class="summary-block mb-3">
             <h3>📋 Inventario declarado</h3>
+            <p style="font-size:.82rem;margin-bottom:8px;color:#374151;"><strong>Volumen total:</strong> {{ number_format($totalM3, 2) }} m³</p>
 
             {{-- Artículos del catálogo ── --}}
             @if(count($catFilled) > 0)
@@ -667,6 +692,7 @@
             </div>
         </div>
 
+        {{-- Desglose de cálculo eliminado - no visible para clientes --}}
         {{-- ── FORM: aceptación + envío ───────────────────────── --}}
         <form id="formPaso4"
               method="POST"

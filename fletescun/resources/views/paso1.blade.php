@@ -301,6 +301,10 @@
         </div>
     </div>
 
+    @php
+        $p1 = session('cotizador_paso1', []);
+    @endphp
+
     {{-- ── TARJETA PRINCIPAL ────────────────────────────────── --}}
     <div class="form-card">
 
@@ -327,13 +331,13 @@
             @csrf
 
             {{-- Campos ocultos para coordenadas y distancia --}}
-            <input type="hidden" name="lat_origen"         id="latOrigen"       value="{{ old('lat_origen') }}">
-            <input type="hidden" name="lng_origen"         id="lngOrigen"       value="{{ old('lng_origen') }}">
-            <input type="hidden" name="lat_destino"        id="latDestino"      value="{{ old('lat_destino') }}">
-            <input type="hidden" name="lng_destino"        id="lngDestino"      value="{{ old('lng_destino') }}">
-            <input type="hidden" name="distancia_km"       id="distanciaKm"     value="{{ old('distancia_km') }}">
-            <input type="hidden" name="estacionamiento_origen"  id="valEstOrigen"  value="{{ old('estacionamiento_origen', '') }}">
-            <input type="hidden" name="estacionamiento_destino" id="valEstDestino" value="{{ old('estacionamiento_destino', '') }}">
+            <input type="hidden" name="lat_origen"         id="latOrigen"       value="{{ old('lat_origen', session('lat_origen')) }}">
+            <input type="hidden" name="lng_origen"         id="lngOrigen"       value="{{ old('lng_origen', session('lng_origen')) }}">
+            <input type="hidden" name="lat_destino"        id="latDestino"      value="{{ old('lat_destino', session('lat_destino')) }}">
+            <input type="hidden" name="lng_destino"        id="lngDestino"      value="{{ old('lng_destino', session('lng_destino')) }}">
+            <input type="hidden" name="distancia_km"       id="distanciaKm"     value="{{ old('distancia_km', $p1['distancia_km'] ?? '') }}">
+            <input type="hidden" name="estacionamiento_origen"  id="valEstOrigen"  value="{{ old('estacionamiento_origen', $p1['estacionamiento_origen'] ?? '') }}">
+            <input type="hidden" name="estacionamiento_destino" id="valEstDestino" value="{{ old('estacionamiento_destino', $p1['estacionamiento_destino'] ?? '') }}">
 
             {{-- ── DATOS DE CONTACTO ─────────────────────────── --}}
             <div class="row g-3 mb-3">
@@ -344,7 +348,7 @@
                         <input type="text" id="nombre" name="nombre"
                                class="field-input @error('nombre') is-invalid @enderror"
                                placeholder="Ej. Juan Pérez López"
-                               value="{{ old('nombre') }}" required autocomplete="name">
+                               value="{{ old('nombre', $p1['nombre'] ?? '') }}" required autocomplete="name">
                     </div>
                     @error('nombre')<span class="error-msg">{{ $message }}</span>@enderror
                 </div>
@@ -355,7 +359,7 @@
                         <input type="tel" id="telefono" name="telefono"
                                class="field-input @error('telefono') is-invalid @enderror"
                                placeholder="Ej. 998 123 4567"
-                               value="{{ old('telefono') }}" required autocomplete="tel">
+                               value="{{ old('telefono', $p1['telefono'] ?? '') }}" required autocomplete="tel">
                     </div>
                     @error('telefono')<span class="error-msg">{{ $message }}</span>@enderror
                 </div>
@@ -368,7 +372,7 @@
                     <input type="email" id="correo" name="correo"
                            class="field-input @error('correo') is-invalid @enderror"
                            placeholder="Ej. juan@correo.com"
-                           value="{{ old('correo') }}" required autocomplete="email">
+                           value="{{ old('correo', $p1['correo'] ?? '') }}" required autocomplete="email">
                 </div>
                 <span class="field-hint">Te enviaremos tu cotización a este correo.</span>
                 @error('correo')<span class="error-msg">{{ $message }}</span>@enderror
@@ -388,7 +392,7 @@
                         <input type="text" id="direccion_origen" name="direccion_origen"
                                class="field-input @error('direccion_origen') is-invalid @enderror"
                                placeholder="Ej. Av. Insurgentes Sur 1234, CDMX"
-                               value="{{ old('direccion_origen') }}" required autocomplete="off">
+                               value="{{ old('direccion_origen', $p1['direccion_origen'] ?? '') }}" required autocomplete="off">
                     </div>
                     <span class="field-hint">Escribe la dirección o selecciónala en el mapa.</span>
                     @error('direccion_origen')<span class="error-msg">{{ $message }}</span>@enderror
@@ -402,7 +406,7 @@
                         <input type="text" id="direccion_destino" name="direccion_destino"
                                class="field-input @error('direccion_destino') is-invalid @enderror"
                                placeholder="Ej. Blvd. Kukulcán km 14, Cancún"
-                               value="{{ old('direccion_destino') }}" required autocomplete="off">
+                               value="{{ old('direccion_destino', $p1['direccion_destino'] ?? '') }}" required autocomplete="off">
                     </div>
                     <span class="field-hint">Escribe la dirección o selecciónala en el mapa.</span>
                     @error('direccion_destino')<span class="error-msg">{{ $message }}</span>@enderror
@@ -480,7 +484,7 @@
                     <input type="date" id="fecha_ideal" name="fecha_ideal"
                            class="field-input @error('fecha_ideal') is-invalid @enderror"
                            min="{{ date('Y-m-d') }}"
-                           value="{{ old('fecha_ideal') }}" required>
+                           value="{{ old('fecha_ideal', $p1['fecha_ideal'] ?? '') }}" required>
                 </div>
                 <span class="field-hint">Podemos ajustar la fecha según disponibilidad.</span>
                 @error('fecha_ideal')<span class="error-msg">{{ $message }}</span>@enderror

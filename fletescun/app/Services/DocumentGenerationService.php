@@ -3,8 +3,8 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
-use App\Mail\CotizacionGenerada;
+use Illuminate\Support\Facades\Log;
+use App\Services\Mail\CotizacionMailService;
 
 /**
  * DocumentGenerationService
@@ -22,15 +22,18 @@ class DocumentGenerationService
     protected PricingService $pricingService;
     protected CartaPorteService $cartaPorteService;
     protected AnexoFotograficoService $anexoService;
+    protected CotizacionMailService $mailService;
 
     public function __construct(
         PricingService $pricingService,
         CartaPorteService $cartaPorteService,
-        AnexoFotograficoService $anexoService
+        AnexoFotograficoService $anexoService,
+        CotizacionMailService $mailService
     ) {
         $this->pricingService = $pricingService;
         $this->cartaPorteService = $cartaPorteService;
         $this->anexoService = $anexoService;
+        $this->mailService = $mailService;
     }
 
     /**
@@ -89,13 +92,19 @@ class DocumentGenerationService
                 'email_enviado' => $emailEnviado,
             ];
 
-        } catch (\Exception $e) {
-            $this->registrarError($cotizacionId, $e->getMessage());
+        } catch (\Throwable $e) {
+            // Evitar exponer detalles sensibles al usuario
+            Log::error('Error en generación/envío de documentación.', [
+                'cotizacion_id' => $cotizacionId,
+                'error_class' => $e::class,
+                'error' => $e->getMessage(),
+            ]);
+
+            $this->registrarError($cotizacionId, 'Error al generar o enviar la documentación.');
 
             return [
                 'success'   => false,
-                'message'   => 'Error al generar documentos: ' . $e->getMessage(),
-                'error'     => $e,
+                'message'   => 'Error al generar o enviar la documentación. Intenta de nuevo o contacta a soporte.',
             ];
         }
     }
@@ -128,13 +137,14 @@ class DocumentGenerationService
         array $anexo
     ): bool {
         try {
-            // Obtener datos de cotización para el correo
+            // Obtener datos de cotización para el correo (para registro)
             $cotizacion = DB::table('cotizaciones')->where('id', $cotizacionId)->first();
             $cliente = DB::table('clientes')->where('id', $cotizacion->cliente_id)->first();
 
-            // Enviar Mailable
-            Mail::to(config('mail.from.address'))  // A gerencia
-                ->send(new CotizacionGenerada($cotizacion, $cliente, $cartaPorte, $anexo));
+            $destinatario = (string) config('cotizacion_mail.to');
+
+            // Envío centralizado (incluye validación de config y adjuntos)
+            $this->mailService->enviarDocumentacion($cotizacionId, $cartaPorte, $anexo);
 
             // Marcar documentos como enviados
             DB::table('documentos_generados')
@@ -144,7 +154,7 @@ class DocumentGenerationService
             // Registrar en log de notificaciones
             DB::table('notificaciones_correo')->insert([
                 'cotizacion_id'   => $cotizacionId,
-                'destinatario'    => config('mail.from.address'),
+                'destinatario'    => $destinatario,
                 'asunto'          => "Cotización Generada - Folio {$cotizacion->folio}",
                 'tipo'            => 'Nuevo Prospecto',
                 'estatus'         => 'Enviado',
@@ -153,19 +163,23 @@ class DocumentGenerationService
 
             return true;
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             // Registrar fallo
             DB::table('notificaciones_correo')->insert([
                 'cotizacion_id'   => $cotizacionId,
-                'destinatario'    => config('mail.from.address'),
+                'destinatario'    => (string) config('cotizacion_mail.to'),
                 'asunto'          => "Error al enviar cotización - Folio",
                 'tipo'            => 'Otro',
                 'estatus'         => 'Fallido',
-                'error_msg'       => $e->getMessage(),
+                'error_msg'       => 'Fallo en envío de correo: ' . $e->getMessage(),
                 'creado_en'       => now(),
             ]);
 
-            \Log::error("Error enviando correo para cotización {$cotizacionId}: " . $e->getMessage());
+            Log::error('Error enviando correo de documentación.', [
+                'cotizacion_id' => $cotizacionId,
+                'error_class' => $e::class,
+                'error' => $e->getMessage(),
+            ]);
 
             return false;
         }
@@ -178,7 +192,7 @@ class DocumentGenerationService
     {
         DB::table('notificaciones_correo')->insert([
             'cotizacion_id'   => $cotizacionId,
-            'destinatario'    => 'sistema@fletescun.local',
+            'destinatario'    => (string) config('cotizacion_mail.to'),
             'asunto'          => 'Error en generación de documentos',
             'tipo'            => 'Otro',
             'estatus'         => 'Fallido',
@@ -186,6 +200,9 @@ class DocumentGenerationService
             'creado_en'       => now(),
         ]);
 
-        \Log::error("DocumentGenerationService error para {$cotizacionId}: {$error}");
+        Log::error('DocumentGenerationService error.', [
+            'cotizacion_id' => $cotizacionId,
+            'error' => $error,
+        ]);
     }
 }

@@ -117,7 +117,13 @@ class PricingService
     private function calcularCostoVolumen(string $cotizacionId): float
     {
         $volumenTotal = $this->obtenerVolumenTotal($cotizacionId);
-        $tarifaPorM3 = config('pricing.tarifa_por_m3', 1300);
+        // Asegurar que la tarifa mínima por m³ sea 1300 MXN.
+        $configTarifa = (float) config('pricing.tarifa_por_m3', 1300);
+        $tarifaPorM3 = max($configTarifa, 1300.0);
+
+        if ($configTarifa < 1300.0) {
+            \Log::warning("Valor de config('pricing.tarifa_por_m3') ({$configTarifa}) menor a 1300; se usará 1300 como mínimo.");
+        }
 
         return $volumenTotal * $tarifaPorM3;
     }
@@ -204,7 +210,8 @@ class PricingService
         return [
             'volumen' => [
                 'm3_total'      => $precios['volumen_m3'],
-                'tarifa_por_m3' => config('pricing.tarifa_por_m3'),
+                // Mostrar la tarifa efectiva (respetando mínimo 1300)
+                'tarifa_por_m3' => max((float) config('pricing.tarifa_por_m3'), 1300.0),
                 'subtotal'      => $precios['costo_volumen'],
                 'concepto'      => 'Volumen de carga (m³)',
             ],
